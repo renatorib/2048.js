@@ -48,21 +48,20 @@ export const newTile = ({
   // value is the tile value: 0, 2, 4, 8, 16...
   // 0 means empty
   value = 0,
-  // locked is a state to game look know if
-  // tile can me merged
-  locked = false,
   // the score of title, used to
   // calculate the score of board
   score = 0,
-} = {}) => ({ key, value, locked, score })
+} = {}) => ({ key, value, score })
 
-export const mergeTiles = (tile, target) =>
-  newTile({
-    locked: true,
+export const mergeTiles = (tile, target) => ({
+  ...newTile({
     value: tile.value + target.value,
     score: tile.value + target.value + tile.score + target.score,
     key: tile.key,
-  })
+  }),
+  // lock tile to not merge twice in same move
+  locked: true,
+})
 
 export const mapMatrix = fn => board =>
   clone(board).map((row, y) => row.map((tile, x) => fn(tile, x, y)))
@@ -165,7 +164,11 @@ export const moveBoard = (direction, coord = [0, 0], turn = 1) => board => {
 
   // our work is done, unlock all tiles
   // and return fresh-new moved board
-  return mapMatrix(tile => ({ ...tile, locked: false }))(moved)
+  return mapMatrix(tile => {
+    const movedTile = clone(tile)
+    delete movedTile.locked
+    return movedTile
+  })(moved)
 }
 
 export const canMoveBoard = direction => board => {
