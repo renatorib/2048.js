@@ -1,6 +1,6 @@
 {
   "name": "2048.js",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "2048 game functions",
   "author": "Renato Ribeiro",
   "license": "MIT",
@@ -11,12 +11,9 @@
   "scripts": {
     "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib",
     "build:es": "cross-env BABEL_ENV=es babel src --out-dir es",
-    "build:umd":
-      "cross-env BABEL_ENV=rollup NODE_ENV=development rollup -c -o dist/2048.js",
-    "build:umd:min":
-      "cross-env BABEL_ENV=rollup NODE_ENV=production rollup -c -o dist/2048.min.js",
-    "build:all":
-      "npm run build:commonjs && npm run build:es && npm run build:umd && npm run build:umd:min",
+    "build:umd": "cross-env BABEL_ENV=rollup NODE_ENV=development rollup -c -o dist/2048.js",
+    "build:umd:min": "cross-env BABEL_ENV=rollup NODE_ENV=production rollup -c -o dist/2048.min.js",
+    "build:all": "npm run build:commonjs && npm run build:es && npm run build:umd && npm run build:umd:min",
     "build": "npm run clean && npm run build:all",
     "clean": "rimraf lib dist es",
     "lint": "eslint src",
