@@ -1,6 +1,6 @@
 ![2048.js](./docs/imgs/logo.png)
 
-A library of functions based on functional programming paradigm to you create your 2048 game.
+A library based in a functional programming paradigm to create a 2048 game.
 
 ## What is it?
 
