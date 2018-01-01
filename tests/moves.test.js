@@ -1,16 +1,16 @@
-import { values, directions, moveBoard, matrixToBoard } from '../src'
+import { getBoardValues, directions, moveBoard, createBoardFromMatrix } from '../src'
 import { pipe } from '../src/utils'
 
 const { LEFT, RIGHT, UP, DOWN } = directions
 
-const matrixMove = (dir) => pipe(
-  matrixToBoard, moveBoard(dir), values
+const moveMatrix = (dir) => pipe(
+  createBoardFromMatrix, moveBoard(dir), getBoardValues
 )
 
-const up = matrixMove(UP)
-const down = matrixMove(DOWN)
-const right = matrixMove(RIGHT)
-const left = matrixMove(LEFT)
+const up = moveMatrix(UP)
+const down = moveMatrix(DOWN)
+const right = moveMatrix(RIGHT)
+const left = moveMatrix(LEFT)
 
 const base = [
   [2, 0, 0, 0],
@@ -54,4 +54,3 @@ it('Should move board to LEFT', () => {
     [4, 4, 0, 0],
   ])
 })
-

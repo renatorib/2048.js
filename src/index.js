@@ -8,29 +8,21 @@ import {
   map,
 } from './utils'
 
-// directions keywords
+// directions coordinates
 export const directions = {
-  LEFT: 'left',
-  RIGHT: 'right',
-  UP: 'up',
-  DOWN: 'down',
+  LEFT: [-1, 0],
+  RIGHT: [1, 0],
+  UP: [0, -1],
+  DOWN: [0, 1],
 }
 
 const { LEFT, RIGHT, UP, DOWN } = directions
 
-// directions mapped to cartesian coodinates offset moves
-export const offsets = {
-  [LEFT]: [-1, 0],
-  [RIGHT]: [+1, 0],
-  [UP]: [0, -1],
-  [DOWN]: [0, +1],
-}
-
 // move a coordinate with a offset
 // ex.: moveCoord([+1, 0], [2, 2]) -> [3, 2]
 //      moveCoord([0, -1], [2, 2]) -> [2, 1]
-const moveCoord = (offsets, coord) =>
-  map((offset, i) => offset + coord[i])(offsets)
+export const moveCoord = (direction, coord) =>
+  map((offset, i) => offset + coord[i])(direction)
 
 /* tiles */
 
@@ -39,7 +31,7 @@ const createKey = () =>
     .toString(36)
     .substr(2, 8)
 
-export const newTile = ({
+export const createTile = ({
   // key is a unique hash for each tile
   // when tile is moved the key dont change
   // it's great to track the tile movement before/after
@@ -51,17 +43,18 @@ export const newTile = ({
   // the score of title, used to
   // calculate the score of board
   score = 0,
-} = {}) => ({ key, value, score })
+  // other meta values
+  ...rest
+} = {}) => ({ key, value, score, ...rest })
 
-export const mergeTiles = (tile, target) => ({
-  ...newTile({
+export const mergeTile = (tile, target) =>
+  createTile({
     value: tile.value + target.value,
     score: tile.value + target.value + tile.score + target.score,
     key: tile.key,
-  }),
-  // lock tile to not merge twice in same move
-  locked: true,
-})
+    // lock tile to not merge twice in same move
+    locked: true,
+  })
 
 export const mapMatrix = fn => board =>
   clone(board).map((row, y) => row.map((tile, x) => fn(tile, x, y)))
@@ -77,7 +70,7 @@ export const emptyCoords = board => {
   return coords
 }
 
-export const randomEmptyCoord = board => {
+export const randomEmptyTileCoord = board => {
   const coords = emptyCoords(board)
   const chosen = coords[Math.floor(Math.random() * coords.length)]
 
@@ -86,28 +79,28 @@ export const randomEmptyCoord = board => {
 
 /* board */
 
-const matrix = (size = 4) => Array(size).fill(Array(size).fill())
+export const createMatrix = (size = 4) => Array(size).fill(Array(size).fill())
 
-export const newEmptyBoard = pipe(matrix, mapMatrix(newTile))
+export const createBoard = pipe(createMatrix, mapMatrix(createTile))
 
-export const newBoard = (size = 4) =>
-  pipe(newEmptyBoard, spawnTile, spawnTile)(size)
+export const createSpawnedBoard = (size = 4) =>
+  pipe(createBoard, spawnInBoard, spawnInBoard)(size)
 
-export const matrixToBoard = matrix =>
-  mapMatrix(value => newTile({ value }))(matrix)
+export const createBoardFromMatrix = matrix =>
+  mapMatrix(value => createTile({ value }))(matrix)
 
-export const values = board => mapMatrix(tile => tile.value)(board)
+export const getBoardValues = board => mapMatrix(tile => tile.value)(board)
 
-export const flatValues = board => pipe(values, flatten)(board)
+export const getBoardFlatValues = board => pipe(getBoardValues, flatten)(board)
 
-export const spawnTile = board => {
+export const spawnInBoard = board => {
   const cloned = clone(board)
-  const position = randomEmptyCoord(cloned)
+  const position = randomEmptyTileCoord(cloned)
   const value = Math.random() <= 0.1 ? 4 : 2
 
   if (position) {
     const [x, y] = position
-    cloned[y][x] = newTile({ value })
+    cloned[y][x] = createTile({ value })
   }
 
   return cloned
@@ -115,7 +108,7 @@ export const spawnTile = board => {
 
 export const moveBoard = (direction, coord = [0, 0], turn = 1) => board => {
   const [x, y] = coord
-  const [ox, oy] = offsets[direction] || [0, 0]
+  const [ox, oy] = direction || [0, 0]
 
   // always move to up or left (will be reversed in down/right)
   const [tx, ty] = moveCoord([-Math.abs(ox), -Math.abs(oy)], coord)
@@ -139,12 +132,12 @@ export const moveBoard = (direction, coord = [0, 0], turn = 1) => board => {
   ) {
     // tile and target tile have same value and both are unlocked
     // time to merge tile in target tile
-    moving[ty][tx] = mergeTiles(tile, target)
-    moving[y][x] = newTile({})
+    moving[ty][tx] = mergeTile(tile, target)
+    moving[y][x] = createTile({})
   } else if (tile.value > 0 && target.value === 0) {
     // previous tile is empty, time to move!
-    moving[ty][tx] = newTile({ ...tile })
-    moving[y][x] = newTile({})
+    moving[ty][tx] = createTile({ ...tile })
+    moving[y][x] = createTile({})
   } else {
     // otherwise, we can't move it, keep the tile intact.
   }
@@ -173,45 +166,46 @@ export const moveBoard = (direction, coord = [0, 0], turn = 1) => board => {
 
 export const canMoveBoard = direction => board => {
   const moved = moveBoard(direction)(board)
-  return !shallowEqual(flatValues(board), flatValues(moved))
+  return !shallowEqual(getBoardFlatValues(board), getBoardFlatValues(moved))
 }
 
-export const scoreBoard = board =>
+export const getBoardScore = board =>
   pipe(clone, flatten, reduce((value, tile) => value + tile.score, 0))(board)
 
-export const isGameOver = board => {
+export const isBoardImmobile = board => {
   return !Object.values(directions).some(dir => canMoveBoard(dir)(board))
 }
 
 /* game state */
 
-const canMoveDirections = board => ({
-  [LEFT]: canMoveBoard(LEFT)(board),
-  [RIGHT]: canMoveBoard(RIGHT)(board),
-  [UP]: canMoveBoard(UP)(board),
-  [DOWN]: canMoveBoard(DOWN)(board),
+const getCanMoveDirections = board => ({
+  left: canMoveBoard(LEFT)(board),
+  right: canMoveBoard(RIGHT)(board),
+  up: canMoveBoard(UP)(board),
+  down: canMoveBoard(DOWN)(board),
 })
 
-export const newGameState = (board = newBoard()) => ({
+export const gameState = (
+  board = createSpawnedBoard(),
+  // below is state values that cannot be computed using the board
+  // are computed inside moveState
+  { scoreEarned = 0, moves = 0 } = {}
+) => ({
   board,
-  gameOver: false,
-  score: 0,
-  scoreEarned: 0,
-  moves: 0,
-  canMove: canMoveDirections(board),
+  moves,
+  scoreEarned,
+  isGameOver: isBoardImmobile(board),
+  score: getBoardScore(board),
+  canMove: getCanMoveDirections(board),
 })
 
-export const move = direction => prevState => {
-  if (!canMoveBoard(direction)(prevState.board)) {
-    return clone(prevState)
-  }
+export const moveState = direction => prevState => {
+  if (!canMoveBoard(direction)(prevState.board)) return clone(prevState)
 
-  const board = pipe(moveBoard(direction), spawnTile)(prevState.board)
-  const gameOver = isGameOver(board)
-  const score = scoreBoard(board)
-  const scoreEarned = score - prevState.score
-  const moves = prevState.moves + 1
-  const canMove = canMoveDirections(board)
+  const board = pipe(moveBoard(direction), spawnInBoard)(prevState.board)
 
-  return { board, gameOver, score, scoreEarned, moves, canMove }
+  return gameState(board, {
+    moves: prevState.moves + 1,
+    scoreEarned: getBoardScore(board) - prevState.score,
+  })
 }
